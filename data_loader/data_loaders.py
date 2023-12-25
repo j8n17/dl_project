@@ -54,14 +54,14 @@ class CustomDataset(Dataset):
             frame_ls.append(frame)
         frames = torch.stack(frame_ls)
 
-        return frame[0].reshape(1, 28, 28), label
+        return frames, label
 
 class CustomDataLoader(BaseDataLoader):
     def __init__(self, root_path, data_txt, batch_size, shuffle=True, num_workers=1, mode='train'):
         trsfm = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,)), # Normalize 값 탐색 후 변경
-            transforms.Resize((28, 28)) # 나중에 수정 예정
+            transforms.Resize((224, 224)) # 나중에 수정 예정
         ])
         self.root_path = root_path
         self.data_txt = data_txt
