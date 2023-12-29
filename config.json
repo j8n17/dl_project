@@ -3,8 +3,18 @@
     "n_gpu": 1,
 
     "arch": {
-        "type": "MnistModel",
-        "args": {}
+        "type": "TSN",
+        "args": {
+            "num_class": 2,
+            "num_segments": 8,
+            "modality": "RGB",
+            "base_model": "resnet101",
+            "consensus_type": "avg",
+            "before_softmax": true,
+            "dropout": 0.8,
+            "crop_num": 1,
+            "partial_bn": true
+        }
     },
     "train_loader": {
         "type": "CustomDataLoader",

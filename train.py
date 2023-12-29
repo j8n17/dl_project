@@ -5,7 +5,8 @@ import numpy as np
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
 import model.metric as module_metric
-import model.model as module_arch
+# import model.model as module_arch
+import tsn_pytorch.models as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from utils import prepare_device
@@ -27,7 +28,7 @@ def main(config):
 
     # build model architecture, then print to console
     model = config.init_obj('arch', module_arch)
-    logger.info(model)
+    # logger.info(model)
 
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config['n_gpu'])
