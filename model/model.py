@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from base import BaseModel
-
+import torchvision
 
 class MnistModel(BaseModel):
     def __init__(self, num_classes=10):
@@ -20,3 +20,63 @@ class MnistModel(BaseModel):
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
+    
+class TSN(BaseModel):
+    def __init__(self, num_segments, modality='rgb', base_model='resnet50', consensus_type='avg', partial_bn=True, num_classes=2):
+        super().__init__()
+        self.modality = modality
+        self.num_segments = num_segments
+        self.num_classes = num_classes
+        self.consensus_type = consensus_type
+
+        self._prepare_base_model(base_model)
+        self._prepare_tsn(num_classes)
+        self.consensus = ConsensusModule(consensus_type)
+        self._enable_pbn = partial_bn
+    
+    def _prepare_base_model(self, base_model):
+        if 'resnet' in base_model:
+            self.base_model = getattr(torchvision.models, base_model)(True)
+            
+            self.input_size = 224
+            self.input_mean = [0.485, 0.456, 0.406]
+            self.input_std = [0.229, 0.224, 0.225]
+        else:
+            print('model is not ready yet.')
+
+    def _prepare_tsn(self, num_classes):
+        in_features = self.base_model.fc.in_features
+        self.base_model.fc = nn.Linear(in_features, num_classes)
+
+    def forward(self, input):
+        # input의 shape : (Batch, Num_segments, RGB, Height, Weight)
+        # output의 shape : (Batch, Num_classes)
+
+        if self.modality != 'rgb':
+            print('This modality is not ready yet.')
+            raise AttributeError
+        else:
+            input = input.view((-1, 3) + input.size()[-2:]) # input의 shape : (Batch*Num_seg, RGB, H, W)
+            # 기존 TSN에는 sample_len이라는 변수 존재
+            base_out = self.base_model(input) # base_out의 shape : (Batch*Num_seg, Num_classes)
+            base_out = base_out.view((-1, self.num_segments) + (base_out.size()[-1],))
+
+            output = self.consensus(base_out)
+            return output
+        
+    def get_optim_policies(self):
+        # BN Freezing 또는 모듈별 lr 설정을 위해 Optimizer에게 줄 파라미터를 조정하는 함수
+        pass
+
+
+class ConsensusModule(nn.Module):
+    def __init__(self, consensus_type):
+        super(ConsensusModule, self).__init__()
+        self.consensus_type = consensus_type
+
+    def forward(self, input):
+        self.shape = input.size() # (Batch, Num_seg, Num_classes)
+        if self.consensus_type == 'avg':
+            output = input.mean(dim=1)
+
+        return output
