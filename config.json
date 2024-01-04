@@ -1,19 +1,16 @@
 {
-    "name": "Mnist_LeNet",
+    "name": "TSN",
     "n_gpu": 1,
 
     "arch": {
         "type": "TSN",
         "args": {
-            "num_class": 2,
             "num_segments": 8,
-            "modality": "RGB",
-            "base_model": "resnet101",
+            "modality": "rgb",
+            "base_model": "resnet50",
             "consensus_type": "avg",
-            "before_softmax": true,
-            "dropout": 0.8,
-            "crop_num": 1,
-            "partial_bn": true
+            "partial_bn": true,
+            "num_classes": 2
         }
     },
     "train_loader": {
@@ -48,7 +45,7 @@
     },
     "loss": "nll_loss",
     "metrics": [
-        "accuracy", "top_k_acc"
+        "accuracy"
     ],
     "lr_scheduler": {
         "type": "StepLR",
@@ -58,7 +55,7 @@
         }
     },
     "trainer": {
-        "epochs": 100,
+        "epochs": 1,
 
         "save_dir": "saved/",
         "save_period": 1,

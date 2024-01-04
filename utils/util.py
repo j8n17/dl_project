@@ -46,7 +46,7 @@ def prepare_device(n_gpu_use):
 class MetricTracker:
     def __init__(self, *keys, writer=None):
         self.writer = writer
-        self._data = pd.DataFrame(index=keys, columns=['total', 'counts', 'average'])
+        self._data = pd.DataFrame(index=keys, columns=['total', 'counts', 'average']) # index : loss, accuracy, top_k_acc
         self.reset()
 
     def reset(self):

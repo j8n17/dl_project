@@ -5,8 +5,8 @@ import numpy as np
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
 import model.metric as module_metric
-# import model.model as module_arch
-import tsn_pytorch.models as module_arch
+import model.model as module_arch
+# import tsn_pytorch.models as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from utils import prepare_device
