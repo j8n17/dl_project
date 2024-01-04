@@ -43,7 +43,7 @@
             "amsgrad": true
         }
     },
-    "loss": "nll_loss",
+    "loss": "ce_loss",
     "metrics": [
         "accuracy"
     ],
@@ -55,7 +55,7 @@
         }
     },
     "trainer": {
-        "epochs": 1,
+        "epochs": 100,
 
         "save_dir": "saved/",
         "save_period": 1,
