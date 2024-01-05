@@ -8,19 +8,41 @@ import cv2
 import os
 from glob import glob
 import matplotlib.pyplot as plt
+import random
 
 class CustomSampler(Sampler):
-    def __init__(self, data_source):
-        self.data_source = data_source
+    def __init__(self, root_path, data_txt, shuffle):
+        with open(os.path.join(root_path, data_txt), 'r') as file:
+            self.datas = file.readlines()
+        # 빈 딕셔너리 생성
+        self.parent_dirs = {}
+
+        # 중복되는 부모 디렉토리인 인덱스들을 리스트로 묶어서 딕셔너리에 저장
+        for i, data in enumerate(self.datas):
+            data = data.split()
+            parent_dir = os.path.split(data[0])[0]
+            if parent_dir not in self.parent_dirs:
+                self.parent_dirs[parent_dir] = []
+            self.parent_dirs[parent_dir].append(i)
+            
+        self.num_parent_dir = len(self.parent_dirs)
+        self.shuffle = shuffle
 
     def __iter__(self):
-        # 여기에 샘플링 로직을 정의합니다.
-        # 예시로 데이터셋의 인덱스를 무작위로 섞은 리스트를 반환합니다.
-        indices = np.random.permutation(len(self.data_source))
+        # 같은 부모 디렉토리인 인덱스들 중 하나만 샘플링.
+        indices = []
+        for same_parent_indices in self.parent_dirs.values():
+            indices.append(random.choice(same_parent_indices))
+        
+        indices = np.array(indices)
+
+        if self.shuffle:
+            np.random.shuffle(indices)
+
         return iter(indices)
 
     def __len__(self):
-        return len(self.data_source)
+        return self.num_parent_dir
 
 class CustomDataset(Dataset):
     def __init__(self, root_path, data_txt, transforms):
@@ -41,6 +63,7 @@ class CustomDataset(Dataset):
         # idx에 해당하는 데이터 로드 및 처리
         # 예: 이미지를 로드하고 변환 적용
         data = self.data[idx].split()
+        print(data) # 데이터 샘플링 확인하기 위한 코드, 삭제 예정.
         frame_folder = os.path.join(self.root_path, data[0])
         clips = data[1]
         label = torch.tensor(int(data[2]))
@@ -67,7 +90,8 @@ class CustomDataLoader(BaseDataLoader):
         self.data_txt = data_txt
         self.dataset = CustomDataset(self.root_path, self.data_txt, transforms=trsfm)
         if mode == 'train':
-            self.sampler = None #CustomSampler()
+            self.sampler = CustomSampler(self.root_path, self.data_txt, shuffle=shuffle)
+            shuffle = False # CustomSampler를 사용할 때는 DataLoader의 shuffle은 False여야 함.
         else:
             self.sampler = None
         super().__init__(self.dataset, batch_size, shuffle, num_workers, self.sampler)
