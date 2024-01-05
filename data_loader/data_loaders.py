@@ -64,7 +64,7 @@ class CustomDataset(Dataset):
         # 예: 이미지를 로드하고 변환 적용
         data = self.data[idx].split()
         frame_folder = os.path.join(self.root_path, data[0])
-        clips = data[1]
+        clips = int(data[1])
         label = torch.tensor(int(data[2]))
 
         frames_path = sorted(glob(os.path.join(frame_folder, '*.jpg'))) # 오름차순으로 정렬
@@ -72,9 +72,10 @@ class CustomDataset(Dataset):
         for frame_path in frames_path:
             frame = cv2.imread(frame_path)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = self.transforms(frame)
             frame_ls.append(frame)
-        frames = torch.stack(frame_ls)
+        frames = np.concatenate(frame_ls, axis=2)
+        frames = self.transforms(frames)
+        frames = frames.reshape((clips, 3) + frames.size()[1:])
 
         return frames, label
 
@@ -82,8 +83,11 @@ class CustomDataLoader(BaseDataLoader):
     def __init__(self, root_path, data_txt, batch_size, shuffle=True, num_workers=1, mode='train'):
         trsfm = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,)), # Normalize 값 탐색 후 변경
-            transforms.Resize((224, 224)) # 나중에 수정 예정
+            transforms.CenterCrop((720, 960)),
+            transforms.Pad((0, 240, 0, 240), fill=0), # (좌, 상, 우, 하), (960, 960)으로 패딩
+            transforms.Resize((224, 224)),
+            transforms.RandomHorizontalFlip(),  # 이미지를 수평으로 무작위로 뒤집기
+            transforms.Normalize(mean=[0.485, 0.456, 0.406] * 8, std=[0.229, 0.224, 0.225] * 8), 
         ])
         self.root_path = root_path
         self.data_txt = data_txt
