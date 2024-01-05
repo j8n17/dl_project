@@ -56,17 +56,67 @@ class TSN(BaseModel):
             print('This modality is not ready yet.')
             raise AttributeError
         else:
+            # (Batch, Num_seg, 3, H, W)
             input = input.view((-1, 3) + input.size()[-2:]) # input의 shape : (Batch*Num_seg, RGB, H, W)
             # 기존 TSN에는 sample_len이라는 변수 존재
             base_out = self.base_model(input) # base_out의 shape : (Batch*Num_seg, Num_classes)
-            base_out = base_out.view((-1, self.num_segments) + (base_out.size()[-1],))
+            base_out = base_out.view((-1, self.num_segments) + (base_out.size()[-1],)) # (Batch, Num_seg, Num_classes)
 
-            output = self.consensus(base_out)
+            output = self.consensus(base_out) # (Batch, Num_classes)
             return output
         
     def get_optim_policies(self):
         # BN Freezing 또는 모듈별 lr 설정을 위해 Optimizer에게 줄 파라미터를 조정하는 함수
-        pass
+        # output은 Optimizer에 입력할 수 있는 파라미터
+        first_conv_weight = []
+        first_conv_bias = []
+        remainder_weight = []
+        remainder_bias = []
+        bn = []
+
+        conv_cnt = 0
+        bn_cnt = 0
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
+                ps = list(m.parameters())
+                conv_cnt += 1
+                if conv_cnt == 1:
+                    first_conv_weight.append(ps[0])
+                    if len(ps) == 2:
+                        first_conv_bias.append(ps[1])
+                else:
+                    remainder_weight.append(ps[0])
+                    if len(ps) == 2:
+                        remainder_bias.append(ps[1])
+            elif isinstance(m, nn.Linear):
+                ps = list(m.parameters())
+                remainder_weight.append(ps[0])
+                if len(ps) == 2:
+                    remainder_bias.append(ps[1])
+                  
+            elif isinstance(m, nn.BatchNorm1d):
+                bn.extend(list(m.parameters()))
+            elif isinstance(m, nn.BatchNorm2d):
+                bn_cnt += 1
+                # later BN's are frozen
+                if not self._enable_pbn or bn_cnt == 1:
+                    bn.extend(list(m.parameters()))
+            elif len(m._modules) == 0:
+                if len(list(m.parameters())) > 0:
+                    raise ValueError("New atomic module type: {}. Need to give it a learning policy".format(type(m)))
+
+        return [
+            {'params': first_conv_weight, 'lr_mult': 5 if self.modality == 'Flow' else 1, 'decay_mult': 1,
+             'name': "first_conv_weight"},
+            {'params': first_conv_bias, 'lr_mult': 10 if self.modality == 'Flow' else 2, 'decay_mult': 0,
+             'name': "first_conv_bias"},
+            {'params': remainder_weight, 'lr_mult': 1, 'decay_mult': 1,
+             'name': "remainder_weight"},
+            {'params': remainder_bias, 'lr_mult': 2, 'decay_mult': 0,
+             'name': "remainder_bias"},
+            {'params': bn, 'lr_mult': 1, 'decay_mult': 0,
+             'name': "BN scale/shift"},
+        ]
 
 
 class ConsensusModule(nn.Module):

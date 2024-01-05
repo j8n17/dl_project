@@ -41,8 +41,11 @@ def main(config):
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
+    # trainable_params = filter(lambda p: p.requires_grad, model.parameters()) # 기존 코드
+    policies = model.get_optim_policies() # 레이어 별로 최적화 정책을 달리하는 코드
+    for group in policies:
+        print(f"group: {group['name']} has {len(group['params'])}, lr_mult: {group['lr_mult']}, decay_mult: {group['decay_mult']}")
+    optimizer = config.init_obj('optimizer', torch.optim, policies)
     lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
     trainer = Trainer(model, criterion, metrics, optimizer,
