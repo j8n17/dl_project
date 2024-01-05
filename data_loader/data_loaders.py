@@ -63,7 +63,6 @@ class CustomDataset(Dataset):
         # idx에 해당하는 데이터 로드 및 처리
         # 예: 이미지를 로드하고 변환 적용
         data = self.data[idx].split()
-        print(data) # 데이터 샘플링 확인하기 위한 코드, 삭제 예정.
         frame_folder = os.path.join(self.root_path, data[0])
         clips = data[1]
         label = torch.tensor(int(data[2]))
