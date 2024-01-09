@@ -45,12 +45,12 @@ class CustomSampler(Sampler):
         return self.num_parent_dir
 
 class CustomDataset(Dataset):
-    def __init__(self, root_path, data_txt, transforms):
+    def __init__(self, root_path, data_txt, augment):
         # 데이터셋 초기화
         # 예: 파일 경로 목록 로드, 변환 초기화 등
         self.root_path = root_path
         self.data_txt = data_txt
-        self.transforms = transforms
+        self.augment = augment
 
         with open(os.path.join(self.root_path, self.data_txt), 'r') as file:
             self.data = file.readlines()
@@ -74,24 +74,25 @@ class CustomDataset(Dataset):
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_ls.append(frame)
         frames = np.concatenate(frame_ls, axis=2)
-        frames = self.transforms(frames)
+        frames = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406] * clips, std=[0.229, 0.224, 0.225] * clips)])(frames)
+        frames = self.augment(frames)
         frames = frames.reshape((clips, 3) + frames.size()[1:])
 
         return frames, label
 
 class CustomDataLoader(BaseDataLoader):
     def __init__(self, root_path, data_txt, batch_size, shuffle=True, num_workers=1, mode='train'):
-        trsfm = transforms.Compose([
-            transforms.ToTensor(),
+        aug = transforms.Compose([
             transforms.CenterCrop((720, 960)),
             transforms.Pad((0, 240, 0, 240), fill=0), # (좌, 상, 우, 하), (960, 960)으로 패딩
             transforms.Resize((224, 224)),
             transforms.RandomHorizontalFlip(),  # 이미지를 수평으로 무작위로 뒤집기
-            transforms.Normalize(mean=[0.485, 0.456, 0.406] * 8, std=[0.229, 0.224, 0.225] * 8), 
         ])
         self.root_path = root_path
         self.data_txt = data_txt
-        self.dataset = CustomDataset(self.root_path, self.data_txt, transforms=trsfm)
+        self.dataset = CustomDataset(self.root_path, self.data_txt, augment=aug)
         if mode == 'train':
             self.sampler = CustomSampler(self.root_path, self.data_txt, shuffle=shuffle)
             shuffle = False # CustomSampler를 사용할 때는 DataLoader의 shuffle은 False여야 함.
